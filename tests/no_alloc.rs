@@ -1,6 +1,7 @@
 use poznan::{Error, LookupParser, Query, ScheduleParser, Stats};
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 use std::alloc::System;
+mod support;
 
 #[global_allocator]
 static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
@@ -10,6 +11,9 @@ static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 fn main() {
     let (mut tag, mut text, mut metadata, mut path) = ([0; 512], [0; 256], [0; 512], [0; 1024]);
     let skipped = [b'x'; 1024];
+    let mut flash_bytes = [0xff; 8192];
+    let mut flash = support::Flash::new(&mut flash_bytes);
+    let mut write = [0; 256];
     let region = Region::new(GLOBAL);
     Query::Schedule {
         street: "TESTOWA",
@@ -41,6 +45,33 @@ fn main() {
         })
         .unwrap();
     let items = lookup.finish().unwrap();
+    let cache = poznan::cache::Cache::new([0, 4096], 4096);
+    let mut update = cache
+        .update(
+            &mut flash,
+            poznan::cache::Buffers {
+                tag: &mut tag,
+                text: &mut text,
+                metadata: &mut metadata,
+                write: &mut write,
+            },
+            123,
+        )
+        .unwrap();
+    for _ in 0..8192 {
+        update.feed(&skipped).unwrap();
+    }
+    for chunk in include_bytes!("fixtures/schedule.html").chunks(1) {
+        update.feed(chunk).unwrap();
+    }
+    let snapshot = update.finish().unwrap().commit().unwrap();
+    assert_eq!(cache.open(&mut flash, &mut write).unwrap(), Some(snapshot));
+    assert_eq!(
+        snapshot
+            .replay(&mut flash, &mut write, &mut metadata, |_| Ok(()))
+            .unwrap(),
+        stats
+    );
     let allocations = region.change();
     assert_eq!(
         stats,
@@ -53,5 +84,7 @@ fn main() {
     assert_eq!(allocations.allocations, 0);
     assert_eq!(allocations.reallocations, 0);
     assert_eq!(allocations.bytes_allocated, 0);
-    println!("allocation probe: 8 MiB streamed; zero heap allocations");
+    println!(
+        "allocation probe: 8 MiB parse + 8 MiB parse/cache/reopen/replay; zero heap allocations"
+    );
 }

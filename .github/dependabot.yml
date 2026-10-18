@@ -1,7 +1,11 @@
 version: 2
 updates:
   - package-ecosystem: cargo
-    directory: /
+    directories:
+      - /
+      - /adapters/https
+      - /checks/live
+      - /checks/ram
     schedule:
       interval: weekly
     commit-message:

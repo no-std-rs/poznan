@@ -1,0 +1,19 @@
+[package]
+name = "poznan-ram-probe"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.91"
+publish = false
+
+[dependencies]
+poznan = { path = "../.." }
+poznan-https = { path = "../../adapters/https" }
+embedded-tls = { version = "=0.19.0", default-features = false }
+embedded-storage = "0.3.2"
+embassy-net = { version = "0.9", default-features = false, features = ["tcp", "proto-ipv4", "medium-ethernet"] }
+rand_core = "0.6"
+
+[workspace]
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -1,0 +1,21 @@
+[package]
+name = "poznan-https"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+publish = false
+
+[dependencies]
+poznan = { path = "../.." }
+embedded-storage = "0.3.2"
+embedded-io-async = "0.7"
+embedded-tls = { version = "=0.19.0", default-features = false, features = ["rustpki", "rsa", "p384"] }
+reqwless = { version = "=0.14.0", default-features = false }
+# ESP32-C3 has no atomic CAS instruction; firmware supplies critical-section.
+spin = { version = "0.9.9", default-features = false, features = ["portable_atomic"] }
+portable-atomic = { version = "1", default-features = false, features = ["critical-section"] }
+
+[workspace]
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -16,5 +16,8 @@ harness = false
 [dev-dependencies]
 stats_alloc = "0.1.10"
 
+[dependencies]
+embedded-storage = "0.3.2"
+
 [lints.rust]
 unsafe_code = "forbid"

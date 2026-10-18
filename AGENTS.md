@@ -12,9 +12,10 @@ codes must fail visibly. Never treat a missing schedule as an empty calendar.
 All events remain provisional until parsing and transport both finish
 successfully. Do not publish partially fetched or parsed updates.
 
-Run the README validation commands. Offline fixtures are synthetic; tests must
-not depend on live city services. The allocation probe runs as a standalone
-executable without the concurrent libtest harness. Report ABI
+Run the README validation commands. Offline HTML fixtures are synthetic; the
+public TLS chain is pinned as an offline verifier fixture. Tests must not depend
+on live city services. The allocation probe runs as a standalone executable
+without the concurrent libtest harness. Report ABI
 storage sizes separately from complete device or HTTP/TLS RAM measurements.
 
 Use Conventional Commit titles. Runnerless evaluates Codex review from the
