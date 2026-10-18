@@ -13,8 +13,8 @@ All events remain provisional until parsing and transport both finish
 successfully. Do not publish partially fetched or parsed updates.
 
 Run the README validation commands. Offline fixtures are synthetic; tests must
-not depend on live city services. The allocation test has its own integration
-test process to avoid interference from unrelated allocations. Report ABI
+not depend on live city services. The allocation probe runs as a standalone
+executable without the concurrent libtest harness. Report ABI
 storage sizes separately from complete device or HTTP/TLS RAM measurements.
 
 Use Conventional Commit titles. Runnerless evaluates Codex review from the

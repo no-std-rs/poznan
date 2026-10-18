@@ -9,6 +9,10 @@ repository = "https://github.com/no-std-rs/poznan"
 keywords = ["poznan", "no-std", "embedded", "streaming", "waste"]
 categories = ["no-std::no-alloc", "embedded", "parser-implementations"]
 
+[[test]]
+name = "no_alloc"
+harness = false
+
 [dev-dependencies]
 stats_alloc = "0.1.10"
 

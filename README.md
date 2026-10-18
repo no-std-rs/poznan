@@ -128,7 +128,7 @@ cargo check --locked --lib --target wasm32-unknown-unknown
 
 The offline suite covers arbitrary chunk sizes, every truncated schedule prefix,
 UTF-8/entities, grouped buildings, distinct object IDs, source changes, invalid
-dates, overflow and sink failure. A separate allocation-counter test streams
+dates, overflow and sink failure. A standalone allocation-counter executable streams
 8 MiB of irrelevant body text followed by the fixture, with zero core heap
 allocations. Tests use synthetic data and do not contact city services.
 

@@ -5,10 +5,9 @@ use std::alloc::System;
 #[global_allocator]
 static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 
-// Keep this in its own integration-test process: other tests must not allocate
-// concurrently while the global allocation counter is being measured.
-#[test]
-fn full_pipeline_allocates_nothing_and_memory_is_independent_of_body_size() {
+// Run without libtest: even one #[test] has a concurrent harness thread whose
+// allocations can race a process-global allocation counter on hosted runners.
+fn main() {
     let (mut tag, mut text, mut metadata, mut path) = ([0; 512], [0; 256], [0; 512], [0; 1024]);
     let skipped = [b'x'; 1024];
     let region = Region::new(GLOBAL);
@@ -54,4 +53,5 @@ fn full_pipeline_allocates_nothing_and_memory_is_independent_of_body_size() {
     assert_eq!(allocations.allocations, 0);
     assert_eq!(allocations.reallocations, 0);
     assert_eq!(allocations.bytes_allocated, 0);
+    println!("allocation probe: 8 MiB streamed; zero heap allocations");
 }
