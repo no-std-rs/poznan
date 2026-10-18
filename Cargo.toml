@@ -5,6 +5,7 @@ edition = "2024"
 rust-version = "1.91"
 description = "Allocation-free streaming access to Poznań city data, starting with waste pickup"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/no-std-rs/poznan"
 keywords = ["poznan", "no-std", "embedded", "streaming", "waste"]
 categories = ["no-std::no-alloc", "embedded", "parser-implementations"]
 

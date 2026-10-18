@@ -1,0 +1,28 @@
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check the pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+
+          pattern = r'(feat|fix|perf|refactor|docs|test|ci|build|chore|revert)(\([a-z0-9_./-]+\))?!?: [a-z].+'
+          if not re.fullmatch(pattern, os.environ['PR_TITLE']):
+              sys.exit('Use a Conventional Commit title with a lowercase subject, e.g. fix(waste): preserve object IDs')
+          PY

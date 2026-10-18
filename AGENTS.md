@@ -16,3 +16,6 @@ Run the README validation commands. Offline fixtures are synthetic; tests must
 not depend on live city services. The allocation test has its own integration
 test process to avoid interference from unrelated allocations. Report ABI
 storage sizes separately from complete device or HTTP/TLS RAM measurements.
+
+Use Conventional Commit titles. Runnerless evaluates Codex review from the
+trusted base revision; see docs/runnerless.md for enrollment and enforcement.
