@@ -9,6 +9,13 @@ The MSRV job builds the library on Rust 1.91.1 for the host, bare-metal RISC-V
 and WebAssembly. Pull request titles follow Conventional Commits. Dependencies
 and pinned GitHub Actions receive weekly Dependabot updates.
 
+`main` requires `Stable Rust`, `Rust 1.91 / no_std`, `Conventional Commits`
+and `Runnerless / Codex review`, pinned to their reporting GitHub Apps. Pull
+requests must resolve conversations and pass against the current base. Squash
+merge is enabled; administrator bypass is available for the solo maintainer.
+Reviews are requested manually, matching the neighboring repositories.
+Request a review with a pull request comment containing `@codex review`.
+
 Runnerless evaluates Codex review evidence using `.runnerless-ci.ts`. The
 `codex-review` workflow reacts to pull request, review, comment, thread and
 check events, and reports `Runnerless / Codex review`. The program comes from
@@ -19,15 +26,16 @@ does not pass. After pushing fixes, the current head needs a fresh review.
 
 The repository must be connected to the organization's existing My Toolkit
 GitHub App installation (App ID `4602759`) and adopted in Runnerless. With an
-authorized `runl` session, enrollment is:
+authorized Runnerless operator session, enrollment through the installed App is:
 
 ```sh
-runl repositories add no-std-rs/poznan --github-id 1424884458
+runl repositories add no-std-rs/poznan
 ```
 
-The CLI accepts the GitHub verification credential through hidden input or
-stdin; keep it out of command arguments, source files and logs. Enrollment,
-repository automation preferences and GitHub App access are external settings;
+This path verifies operator authority and the installed App's access without
+forwarding a GitHub user token. The repository's immutable GitHub ID is
+`1424884458`. Enrollment, repository automation preferences and GitHub App
+access are external settings;
 committing a program alone does not activate them. Current Runnerless enrollment
 does not require adding a repository to infrastructure allowlists.
 
