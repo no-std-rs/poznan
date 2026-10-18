@@ -1,0 +1,15 @@
+[package]
+name = "poznan"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+description = "Allocation-free streaming access to Poznań city data, starting with waste pickup"
+license = "MIT OR Apache-2.0"
+keywords = ["poznan", "no-std", "embedded", "streaming", "waste"]
+categories = ["no-std::no-alloc", "embedded", "parser-implementations"]
+
+[dev-dependencies]
+stats_alloc = "0.1.10"
+
+[lints.rust]
+unsafe_code = "forbid"
