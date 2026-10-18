@@ -1,6 +1,7 @@
 # poznan
 
-Allocation-free, `no_std` streaming access to Poznań waste pickup schedules.
+Allocation-free, `no_std` streaming access to Poznań waste schedules, ZTM stops
+and parking meters.
 The core uses only the `embedded-storage` traits and forbids unsafe Rust.
 All variable buffers belong to the caller. Rust 1.91 or later is required.
 
@@ -100,7 +101,7 @@ failed or interrupted updates preserve the previous schedule. Reopening checks
 both banks and replays from flash using bounded buffers.
 
 The separate `adapters/https` crate supplies verified embedded TLS and framed
-HTTP. The ESP32-C3 compiler budget is **90,808 / 100,000 bytes**, including a
+HTTP. The ESP32-C3 compiler budget is **91,008 / 100,000 bytes**, including a
 24 KiB RSA arena, 24 KiB stack allowance and TCP buffers. A live refresh stored
 594 pickups in **3,089 payload bytes**; the whole pipeline's host heap peaked at
 22,272 bytes with no arena misses. Physical stack usage still needs board
@@ -108,6 +109,30 @@ measurement. The 100 KB covers this pipeline; existing Wi-Fi/application memory
 is outside that allowance.
 
 See [ESP32 budget, cache usage and live reproduction](docs/esp32.md).
+
+## Stops and parking meters
+
+`poznan::mobility` streams the city's GeoJSON for ZTM stop points and parking
+meters into borrowed typed records. Two caller buffers total 2,560 bytes,
+independent of feature count. Stop IDs, zones and line labels remain exact;
+unknown payment support remains unknown. Coordinates and the source CRS are
+validated, and source error envelopes fail visibly.
+
+```sh
+cargo run --release --locked --manifest-path checks/live/Cargo.toml -- \
+  stops /tmp/poznan-stops.ndjson
+cargo run --release --locked --manifest-path checks/live/Cargo.toml -- \
+  meters /tmp/poznan-meters.ndjson
+```
+
+These commands use verified embedded HTTPS and publish a local NDJSON cache
+only after the entire transfer and parser succeed. Live verification matched
+all 3,334 stop points and 691 meters against an independent decoder. The
+ESP32-C3 mobility pipeline budget is **90,824 / 100,000 bytes**, with the same
+stack and radio-baseline assumptions as waste.
+
+See [mobility usage and source semantics](docs/mobility.md) and the
+[checked source inventory](docs/data-sources.md).
 
 ## Source contract and limits
 
@@ -151,7 +176,8 @@ The offline suite covers arbitrary chunk sizes, every truncated schedule prefix,
 UTF-8/entities, grouped buildings, distinct object IDs, source changes, invalid
 dates, overflow and sink failure. A standalone allocation-counter executable streams
 8 MiB of irrelevant body text followed by the fixture, with zero core heap
-allocations. HTML fixtures are synthetic; the TLS fixture is the public city
+allocations. It also streams 20,000 mobility records without allocating.
+HTML and GeoJSON fixtures are synthetic; the TLS fixture is the public city
 certificate chain. Tests do not contact city services.
 
 See [repository automation](docs/runnerless.md) for CI, Runnerless enrollment and

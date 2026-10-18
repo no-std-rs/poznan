@@ -39,20 +39,40 @@ pub enum Error {
     Encoding,
     Framing,
     Cache(poznan::cache::Error),
+    Parse(poznan::Error),
 }
 
-/// Allocate this once in static storage on the device, rather than constructing
-/// it on a small task stack. All arrays remain in place across refresh awaits.
-pub struct Workspace<C: TlsClock> {
+/// Fixed, caller-owned HTTPS storage. Initialize in static storage on a device.
+pub struct HttpWorkspace<C: TlsClock> {
     rx: [u8; 16640],
     tx: [u8; 2304],
     headers: [u8; 2048],
+    verifier: Option<CertVerifier<'static, Aes128GcmSha256, C, 8192>>,
+}
+impl<C: TlsClock> Default for HttpWorkspace<C> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<C: TlsClock> HttpWorkspace<C> {
+    pub const fn new() -> Self {
+        Self {
+            rx: [0; 16640],
+            tx: [0; 2304],
+            headers: [0; 2048],
+            verifier: None,
+        }
+    }
+}
+/// Waste parser/cache storage alongside the reusable HTTPS workspace.
+/// Use a const static initializer rather than a large temporary on the stack.
+pub struct Workspace<C: TlsClock> {
+    pub http: HttpWorkspace<C>,
     path: [u8; 1024],
     tag: [u8; 512],
     text: [u8; 256],
     metadata: [u8; 512],
     write: [u8; 256],
-    verifier: Option<CertVerifier<'static, Aes128GcmSha256, C, 8192>>,
 }
 impl<C: TlsClock> Default for Workspace<C> {
     fn default() -> Self {
@@ -62,15 +82,12 @@ impl<C: TlsClock> Default for Workspace<C> {
 impl<C: TlsClock> Workspace<C> {
     pub const fn new() -> Self {
         Self {
-            rx: [0; 16640],
-            tx: [0; 2304],
-            headers: [0; 2048],
+            http: HttpWorkspace::new(),
             path: [0; 1024],
             tag: [0; 512],
             text: [0; 256],
             metadata: [0; 512],
             write: [0; 256],
-            verifier: None,
         }
     }
 }
@@ -124,6 +141,45 @@ pub async fn refresh<S: Read + Write, F: NorFlash, R: CryptoRngCore, C: TlsClock
         return Err(Error::Query(poznan::Error::InvalidQuery));
     }
     let path = query.path(&mut work.path).map_err(Error::Query)?;
+    let mut update = cache
+        .update(
+            flash,
+            Buffers {
+                tag: &mut work.tag,
+                text: &mut work.text,
+                metadata: &mut work.metadata,
+                write: &mut work.write,
+            },
+            now,
+        )
+        .map_err(Error::Cache)?;
+    get(socket, path, rng, &mut work.http, |bytes| {
+        update.feed(bytes).map_err(Error::Cache)
+    })
+    .await?;
+    update
+        .finish()
+        .map_err(Error::Cache)?
+        .commit()
+        .map_err(Error::Cache)
+}
+
+/// Download one same-origin GET with verified TLS and explicit HTTP framing.
+/// Chunks remain provisional until this returns `Ok`. The caller owns deadlines,
+/// output staging and publication; no whole-response buffer is used.
+pub async fn get<S: Read + Write, R: CryptoRngCore, C: TlsClock>(
+    socket: S,
+    path: &str,
+    rng: &mut R,
+    work: &mut HttpWorkspace<C>,
+    mut chunk: impl FnMut(&[u8]) -> Result<(), Error>,
+) -> Result<usize, Error> {
+    if C::now().is_none() {
+        return Err(Error::Clock);
+    }
+    if !path.starts_with('/') || !path.bytes().all(|b| (0x21..=0x7e).contains(&b)) {
+        return Err(Error::Query(poznan::Error::InvalidQuery));
+    }
     let mut tls = TlsConnection::new(socket, &mut work.rx, &mut work.tx);
     let config = TlsConfig::new()
         .with_server_name(HOST)
@@ -146,28 +202,33 @@ pub async fn refresh<S: Read + Write, F: NorFlash, R: CryptoRngCore, C: TlsClock
     let response = Response::read(&mut stream, Method::GET, &mut work.headers)
         .await
         .map_err(Error::Http)?;
-    store_response(
-        response,
-        flash,
-        cache,
-        Buffers {
-            tag: &mut work.tag,
-            text: &mut work.text,
-            metadata: &mut work.metadata,
-            write: &mut work.write,
-        },
-        now,
-    )
-    .await
+    consume_response(response, &mut chunk).await
 }
 
-async fn store_response<S: Read + TryBufRead, F: NorFlash>(
+/// Stream ZTM stops or parking meters over the same verified city transport.
+/// Records are provisional until this returns `Ok`; stage durable output before
+/// publishing it. Suggested buffers: 2048 feature bytes, 512 decoded string bytes.
+pub async fn mobility<S: Read + Write, R: CryptoRngCore, C: TlsClock>(
+    socket: S,
+    feed: poznan::mobility::Feed,
+    rng: &mut R,
+    work: &mut HttpWorkspace<C>,
+    feature: &mut [u8],
+    strings: &mut [u8],
+    mut record: impl FnMut(poznan::mobility::Record<'_>) -> Result<(), poznan::Error>,
+) -> Result<u32, Error> {
+    let mut parser = poznan::mobility::Parser::new(feed, feature, strings);
+    get(socket, feed.path(), rng, work, |bytes| {
+        parser.feed(bytes, &mut record).map_err(Error::Parse)
+    })
+    .await?;
+    parser.finish().map_err(Error::Parse)
+}
+
+async fn consume_response<S: Read + TryBufRead>(
     response: Response<'_, '_, S>,
-    flash: &mut F,
-    cache: Cache,
-    buffers: Buffers<'_>,
-    now: u64,
-) -> Result<Snapshot, Error> {
+    chunk: &mut impl FnMut(&[u8]) -> Result<(), Error>,
+) -> Result<usize, Error> {
     if response.status.0 != 200 {
         return Err(Error::Status(response.status.0));
     }
@@ -204,7 +265,6 @@ async fn store_response<S: Read + TryBufRead, F: NorFlash>(
         return Err(Error::Framing);
     }
     let mut body = response.body().reader();
-    let mut update = cache.update(flash, buffers, now).map_err(Error::Cache)?;
     let mut total = 0usize;
     loop {
         let bytes = body.fill_buf().await.map_err(Error::Http)?;
@@ -212,18 +272,14 @@ async fn store_response<S: Read + TryBufRead, F: NorFlash>(
             break;
         }
         total = total.checked_add(bytes.len()).ok_or(Error::Framing)?;
-        update.feed(bytes).map_err(Error::Cache)?;
+        chunk(bytes)?;
         let n = bytes.len();
         body.consume(n);
     }
     if length.is_some_and(|n| n != total) {
         return Err(Error::Framing);
     }
-    update
-        .finish()
-        .map_err(Error::Cache)?
-        .commit()
-        .map_err(Error::Cache)
+    Ok(total)
 }
 
 #[cfg(test)]

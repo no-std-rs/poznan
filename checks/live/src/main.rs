@@ -1,5 +1,6 @@
 mod arena;
 mod flash;
+mod mobility;
 use embedded_io_async::{ErrorKind, ErrorType, Read, Write};
 use embedded_tls::TlsClock;
 use poznan::{Query, cache::Cache};
@@ -52,8 +53,16 @@ fn block_on<T>(future: impl Future<Output = T>) -> T {
 }
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.first().is_some_and(|s| {
+        matches!(
+            s.as_str(),
+            "stops" | "meters" | "parse-stops" | "parse-meters"
+        )
+    }) {
+        return mobility::run(&args);
+    }
     let cache = Cache::new([0, 32768], 32768);
-    let usage = "Usage: poznan-live-probe refresh CACHE_FILE STREET BUILDING_GROUP [OBJECT_ID]\n       poznan-live-probe read CACHE_FILE\n       poznan-live-probe import CACHE_FILE HTML_FILE";
+    let usage = "Mobility: stops|meters CACHE_NDJSON; parse-stops|parse-meters INPUT_JSON CACHE_NDJSON\nUsage: poznan-live-probe refresh CACHE_FILE STREET BUILDING_GROUP [OBJECT_ID]\n       poznan-live-probe read CACHE_FILE\n       poznan-live-probe import CACHE_FILE HTML_FILE";
     let Some(file) = args.get(1) else {
         return Err(usage.into());
     };

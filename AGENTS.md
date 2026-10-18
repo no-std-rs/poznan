@@ -4,6 +4,10 @@ The library and its runtime dependencies must compile without `std` or `alloc`.
 Keep variable storage caller-owned and report capacity overflow. Networking,
 TLS, subprocesses and hosted output belong in examples or separate adapters.
 
+Mobility uses the city map GeoJSON service. Preserve exact IDs, route labels
+and unknown payment flags; validate the complete collection and its CRS before
+publishing. Variable data and retained output remain caller-owned.
+
 Source: the waste lookup and schedule HTML at poznan.pl. Preserve exact building
 groups and object IDs, including trailing punctuation. Several objects can share
 one street number and have different schedules. Unknown layout or waste fraction

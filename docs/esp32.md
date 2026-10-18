@@ -1,5 +1,7 @@
 # ESP32-C3: a 100,000-byte pipeline
 
+For the mobility profile and shared transport changes, see [mobility memory](mobility.md).
+
 The budget is **100,000 bytes available to the download/parse/cache pipeline**,
 not the entire Wi-Fi firmware. The supplied adapter uses real `embedded-tls`
 0.19 and `reqwless` 0.14 code, not curl or a desktop TLS implementation.
@@ -11,12 +13,12 @@ compiler-folded sizes from LLVM IR. It fails above 100,000 bytes.
 | Concurrent storage | Bytes | Evidence |
 | --- | ---: | --- |
 | Workspace: TLS records, certificate verifier, HTTP headers, URL, parser and flash buffers | 32,216 | ESP32-C3 ABI size |
-| Refresh future, including socket and nested handshake/HTTP futures | 2,272 | ESP32-C3 ABI size |
+| Refresh future, including socket and nested handshake/HTTP futures | 2,472 | ESP32-C3 ABI size |
 | RSA first-fit arena | 24,576 | Fixed reservation; host-tested |
 | Call stack | 24,576 | Allowance; requires board high-water measurement |
 | TCP receive / send buffers | 6,144 | 4,096 + 2,048 configuration |
 | RNG, flash adapter, executor and socket bookkeeping | 1,024 | Allowance |
-| **Total / remaining** | **90,808 / 9,192** | Compiler gate checks current code |
+| **Total / remaining** | **91,008 / 8,992** | Compiler gate checks current code |
 
 These are concurrent reservations, not a physical board RAM measurement.
 Wi-Fi driver buffers, shared network-stack tables, DNS task storage and the

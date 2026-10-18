@@ -86,3 +86,26 @@ pub fn reserves_bytes() -> usize {
         + poznan_https::TCP_TX
         + 1024 // RNG, flash adapter, executor metadata and socket bookkeeping allowance
 }
+
+#[inline(never)]
+pub fn mobility_storage_bytes() -> usize {
+    size_of::<poznan_https::HttpWorkspace<Clock>>() + 2048 + 512
+}
+#[inline(never)]
+pub fn mobility_future_bytes(
+    socket: embassy_net::tcp::TcpSocket<'_>,
+    rng: &mut Rng,
+    work: &mut poznan_https::HttpWorkspace<Clock>,
+    feature: &mut [u8; 2048],
+    strings: &mut [u8; 512],
+) -> usize {
+    size_of_val(&poznan_https::mobility(
+        socket,
+        poznan::mobility::Feed::Stops,
+        rng,
+        work,
+        feature,
+        strings,
+        |_| Ok(()),
+    ))
+}

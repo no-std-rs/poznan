@@ -39,19 +39,27 @@ fn response(flash: &mut support::Flash<'_>, bytes: &[u8]) -> Result<Snapshot, Er
         let response = Response::read(&mut source, Method::GET, &mut headers)
             .await
             .map_err(Error::Http)?;
-        store_response(
-            response,
-            flash,
-            Cache::new([0, 4096], 4096),
-            Buffers {
-                tag: &mut tag,
-                text: &mut text,
-                metadata: &mut metadata,
-                write: &mut write,
-            },
-            123,
-        )
-        .await
+        let mut update = Cache::new([0, 4096], 4096)
+            .update(
+                flash,
+                Buffers {
+                    tag: &mut tag,
+                    text: &mut text,
+                    metadata: &mut metadata,
+                    write: &mut write,
+                },
+                123,
+            )
+            .map_err(Error::Cache)?;
+        consume_response(response, &mut |bytes| {
+            update.feed(bytes).map_err(Error::Cache)
+        })
+        .await?;
+        update
+            .finish()
+            .map_err(Error::Cache)?
+            .commit()
+            .map_err(Error::Cache)
     })
 }
 fn fixed(headers: &str, html: &[u8], length: usize) -> Vec<u8> {

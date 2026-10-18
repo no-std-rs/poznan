@@ -1,4 +1,4 @@
-//! Streaming Poznań waste lookups and pickup schedules, without `std` or `alloc`.
+//! Streaming Poznań waste schedules and city mobility data without `std` or `alloc`.
 //!
 //! Transport is caller-owned. Feed decoded HTTP body bytes to [`LookupParser`]
 //! or [`ScheduleParser`] in arbitrary chunks. All variable storage is borrowed
@@ -15,7 +15,9 @@
 pub mod cache;
 mod date;
 mod html;
+mod json;
 mod lookup;
+pub mod mobility;
 mod request;
 mod waste;
 
@@ -30,6 +32,8 @@ pub enum Error {
     BufferTooSmall,
     InvalidUtf8,
     InvalidHtml,
+    InvalidJson,
+    DepthExceeded,
     InvalidEntity,
     InvalidDate,
     InvalidDays,

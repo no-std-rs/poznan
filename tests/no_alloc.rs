@@ -14,6 +14,8 @@ fn main() {
     let mut flash_bytes = [0xff; 8192];
     let mut flash = support::Flash::new(&mut flash_bytes);
     let mut write = [0; 256];
+    let mut feature = [0; 2048];
+    let mut strings = [0; 512];
     let region = Region::new(GLOBAL);
     Query::Schedule {
         street: "TESTOWA",
@@ -72,6 +74,25 @@ fn main() {
             .unwrap(),
         stats
     );
+    let mut mobility =
+        poznan::mobility::Parser::new(poznan::mobility::Feed::Stops, &mut feature, &mut strings);
+    mobility
+        .feed(
+            b"{\"type\":\"FeatureCollection\",\"features\":[",
+            |_| Ok(()),
+        )
+        .unwrap();
+    const STOP: &[u8] = br#"{"type":"Feature","id":"TEST01","geometry":{"type":"Point","coordinates":[16.9,52.4]},"properties":{"stop_name":"Pr\u00f3ba","zone":"A","headsigns":"1, 2","route_type":"3"}}"#;
+    for i in 0..20000 {
+        if i > 0 {
+            mobility.feed(b",", |_| Ok(())).unwrap();
+        }
+        for chunk in STOP.chunks(1) {
+            mobility.feed(chunk, |_| Ok(())).unwrap();
+        }
+    }
+    mobility.feed(b"]}", |_| Ok(())).unwrap();
+    assert_eq!(mobility.finish(), Ok(20000));
     let allocations = region.change();
     assert_eq!(
         stats,
@@ -85,6 +106,6 @@ fn main() {
     assert_eq!(allocations.reallocations, 0);
     assert_eq!(allocations.bytes_allocated, 0);
     println!(
-        "allocation probe: 8 MiB parse + 8 MiB parse/cache/reopen/replay; zero heap allocations"
+        "allocation probe: 8 MiB parse + 8 MiB cache/replay + 20,000 mobility records; zero heap allocations"
     );
 }
