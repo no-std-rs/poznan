@@ -20,6 +20,11 @@ fn main() {
     );
     println!("body read buffer in CLI: 1024 bytes");
     println!(
+        "MobilityParser state: {} bytes",
+        size_of::<poznan::mobility::Parser<'_>>()
+    );
+    println!("mobility caller buffers: 2560 bytes (feature 2048 + strings 512)");
+    println!(
         "ABI storage sizes only; excludes call stack, output buffering, HTTP/TLS, process and radio memory."
     );
 }
