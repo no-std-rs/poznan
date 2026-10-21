@@ -1,8 +1,8 @@
 # poznan
 
 Allocation-free, `no_std` streaming access to Poznań waste pickup schedules.
-The core has no runtime dependencies and forbids unsafe Rust. All variable
-buffers belong to the caller. Rust 1.91 or later is required.
+The core uses only the `embedded-storage` traits and forbids unsafe Rust.
+All variable buffers belong to the caller. Rust 1.91 or later is required.
 
 The first provider is the city's [waste schedule table](https://www.poznan.pl/mim/odpady/harmonogramy.html).
 It exposes street, building-group and service-object lookups, then HTML tables
@@ -92,6 +92,23 @@ decodes UTF-8 text and common/numeric HTML entities in captured fields, checks
 calendar dates, and rejects malformed or duplicate days, unknown fraction codes,
 incomplete tables and buffer overflow. Failed or finished parsers are closed.
 
+## Flash cache and the 100 KB ESP32 pipeline
+
+`poznan::cache` streams into two caller-selected NOR flash banks with a 256-byte
+write buffer. It publishes only after successful parsing and HTTP completion;
+failed or interrupted updates preserve the previous schedule. Reopening checks
+both banks and replays from flash using bounded buffers.
+
+The separate `adapters/https` crate supplies verified embedded TLS and framed
+HTTP. The ESP32-C3 compiler budget is **90,808 / 100,000 bytes**, including a
+24 KiB RSA arena, 24 KiB stack allowance and TCP buffers. A live refresh stored
+594 pickups in **3,089 payload bytes**; the whole pipeline's host heap peaked at
+22,272 bytes with no arena misses. Physical stack usage still needs board
+measurement. The 100 KB covers this pipeline; existing Wi-Fi/application memory
+is outside that allowance.
+
+See [ESP32 budget, cache usage and live reproduction](docs/esp32.md).
+
 ## Source contract and limits
 
 Observed on 2026-10-18. Public GET endpoints under `/mim/public/odpady/`:
@@ -122,15 +139,20 @@ cargo fmt --all --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets
 cargo test --locked --doc
-cargo check --locked --lib --target riscv32imac-unknown-none-elf
+cargo check --locked --lib --target riscv32imc-unknown-none-elf
 cargo check --locked --lib --target wasm32-unknown-unknown
+cargo test --locked --manifest-path adapters/https/Cargo.toml
+cargo test --locked --manifest-path checks/live/Cargo.toml
+cargo fetch --locked --manifest-path checks/ram/Cargo.toml
+python3 checks/check_ram.py
 ```
 
 The offline suite covers arbitrary chunk sizes, every truncated schedule prefix,
 UTF-8/entities, grouped buildings, distinct object IDs, source changes, invalid
 dates, overflow and sink failure. A standalone allocation-counter executable streams
 8 MiB of irrelevant body text followed by the fixture, with zero core heap
-allocations. Tests use synthetic data and do not contact city services.
+allocations. HTML fixtures are synthetic; the TLS fixture is the public city
+certificate chain. Tests do not contact city services.
 
 See [repository automation](docs/runnerless.md) for CI, Runnerless enrollment and
 Codex review enforcement.

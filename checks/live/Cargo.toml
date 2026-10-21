@@ -1,0 +1,21 @@
+[package]
+name = "poznan-live-probe"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.91"
+publish = false
+
+[dependencies]
+poznan = { path = "../.." }
+poznan-https = { path = "../../adapters/https" }
+embedded-storage = "0.3.2"
+embedded-io-async = "0.7"
+embedded-tls = { version = "=0.19.0", default-features = false }
+linked_list_allocator = { version = "0.10", default-features = false }
+rand = "0.8"
+
+[[test]]
+name = "tls"
+harness = false
+
+[workspace]
